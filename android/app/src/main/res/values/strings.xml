@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Uz Telegram</string>
+    <string name="title_activity_main">Uz Telegram</string>
+    <string name="package_name">uz.telegram.app</string>
+    <string name="custom_url_scheme">uz.telegram.app</string>
+</resources>
