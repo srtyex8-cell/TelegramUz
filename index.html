@@ -1,0 +1,200 @@
+
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Uz Telegram</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#eaf3f8;color:#222}
+header{background:#229ed9;color:white;padding:18px;font-size:23px}
+main{padding:18px}
+.page{display:none}
+#phonePage{display:block}
+input{width:100%;padding:14px;margin:10px 0;border:1px solid #ccc;border-radius:10px;font-size:16px}
+button{padding:13px;background:#229ed9;color:white;border:0;border-radius:10px;font-size:15px}
+.photo{width:110px;height:110px;border-radius:50%;object-fit:cover;background:#ddd;display:block;margin:15px auto}
+.center{text-align:center}
+#messages{height:45vh;overflow:auto;padding:10px}
+.msg{background:white;padding:12px;margin:8px 0;border-radius:12px}
+#sendbox{display:flex;gap:7px;background:white;padding:8px}
+#sendbox input{min-width:0}
+nav{position:fixed;bottom:0;left:0;right:0;background:white;display:flex;justify-content:space-around;padding:10px}
+nav button{padding:10px}
+#chatPage{padding-bottom:70px}
+</style>
+</head>
+<body>
+<header>✈ Uz Telegram</header>
+
+<main>
+<section id="phonePage" class="page">
+<h2>Xush kelibsiz!</h2>
+<p>Telefon raqamingizni kiriting</p>
+<input id="phone" value="+998" maxlength="13">
+<button onclick="sendCode()">Davom etish</button>
+</section>
+
+<section id="codePage" class="page">
+<h2>Tasdiqlash kodi</h2>
+<p>Bu sinov kodi. SMS yuborilmaydi:</p>
+<h1 id="demoCode"></h1>
+<input id="code" placeholder="6 xonali kod" maxlength="6">
+<button onclick="checkCode()">Tasdiqlash</button>
+</section>
+
+<section id="profilePage" class="page">
+<h2 class="center">Profil yaratish</h2>
+<img id="profilePreview" class="photo" alt="Profil rasmi">
+<div class="center">
+<label for="photoInput">📷 Rasm tanlash</label>
+<input id="photoInput" type="file" accept="image/*">
+</div>
+<input id="name" placeholder="Ismingiz">
+<button onclick="enterChat()">Davom etish</button>
+</section>
+
+<section id="chatPage" class="page">
+<h2>💬 Chatlar</h2>
+<div id="messages"></div>
+<div id="sendbox">
+<input id="message" placeholder="Xabar yozing...">
+<button onclick="sendMessage()">Yuborish</button>
+</div>
+<nav>
+<button onclick="showTab('chat')">Chatlar</button>
+<button onclick="showTab('calls')">Qo‘ng‘iroqlar</button>
+<button onclick="showTab('settings')">Sozlamalar</button>
+</nav>
+<div id="otherTab"></div>
+</section>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket=io();
+let demoCode="";
+let profilePhoto="";
+
+function showPage(id){
+document.querySelectorAll(".page").forEach(p=>p.style.display="none");
+document.getElementById(id).style.display="block";
+}
+
+function sendCode(){
+let phone=document.getElementById("phone").value.trim();
+if(!/^\+998\d{9}$/.test(phone)){
+alert("Raqamni +998 bilan va 9 ta raqamda kiriting");
+return;
+}
+demoCode=String(Math.floor(100000+Math.random()*900000));
+document.getElementById("demoCode").textContent=demoCode;
+showPage("codePage");
+}
+
+function checkCode(){
+if(document.getElementById("code").value!==demoCode){
+alert("Kod noto‘g‘ri");
+return;
+}
+showPage("profilePage");
+}
+
+document.getElementById("photoInput").addEventListener("change",function(){
+let file=this.files[0];
+if(!file)return;
+if(!file.type.startsWith("image/")){
+alert("Iltimos, rasm tanlang");
+return;
+}
+let reader=new FileReader();
+reader.onload=function(){
+profilePhoto=reader.result;
+document.getElementById("profilePreview").src=profilePhoto;
+};
+reader.readAsDataURL(file);
+});
+
+function enterChat(){
+let name=document.getElementById("name").value.trim();
+if(!name){alert("Ismingizni kiriting");return;}
+localStorage.setItem("uzName",name);
+if(profilePhoto)localStorage.setItem("uzPhoto",profilePhoto);
+socket.emit("join",name);
+showPage("chatPage");
+}
+
+function sendMessage(){
+let input=document.getElementById("message");
+let text=input.value.trim();
+if(!text)return;
+socket.emit("message",text);
+input.value="";
+}
+
+function addMessage(name,text){
+let div=document.createElement("div");
+div.className="msg";
+let b=document.createElement("b");
+b.textContent=name;
+let p=document.createElement("p");
+p.textContent=text;
+div.append(b,p);
+document.getElementById("messages").append(div);
+document.getElementById("messages").scrollTop=
+document.getElementById("messages").scrollHeight;
+}
+
+function showTab(tab){
+let area=document.getElementById("otherTab");
+if(tab==="chat"){
+area.innerHTML="";
+return;
+}
+if(tab==="calls"){
+area.textContent="Ovozli va video qo‘ng‘iroqlar keyingi bosqichda ulanadi.";
+return;
+}
+let savedName=localStorage.getItem("uzName")||"";
+let savedPhoto=localStorage.getItem("uzPhoto")||"";
+area.innerHTML="";
+let title=document.createElement("h3");
+title.textContent="⚙ Sozlamalar";
+area.append(title);
+let name=document.createElement("p");
+name.textContent="Ism: "+savedName;
+area.append(name);
+let img=document.createElement("img");
+img.className="photo";
+img.alt="Profil rasmi";
+img.src=savedPhoto;
+area.append(img);
+let label=document.createElement("label");
+label.textContent="Profil rasmini almashtirish";
+let picker=document.createElement("input");
+picker.type="file";
+picker.accept="image/*";
+picker.onchange=function(){
+let file=picker.files[0];
+if(!file||!file.type.startsWith("image/"))return;
+let reader=new FileReader();
+reader.onload=function(){
+localStorage.setItem("uzPhoto",reader.result);
+img.src=reader.result;
+document.getElementById("profilePreview").src=reader.result;
+};
+reader.readAsDataURL(file);
+};
+area.append(label,picker);
+}
+
+socket.on("message",data=>addMessage(data.name,data.text));
+socket.on("notice",text=>addMessage("Tizim",text));
+
+document.getElementById("message").addEventListener("keydown",e=>{
+if(e.key==="Enter")sendMessage();
+});
+</script>
+</body>
+</html>
